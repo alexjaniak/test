@@ -54,9 +54,9 @@ class TorusPrismExperiment {
   private grainPass: ShaderPass;
 
   constructor() {
-    // Scene with gradient background
+    // Scene with pure black background
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x050510);
+    this.scene.background = new THREE.Color(0x000000);
 
     // Camera - front view showing horizontal part of knot
     this.camera = new THREE.PerspectiveCamera(
@@ -136,34 +136,27 @@ class TorusPrismExperiment {
   private createBackgroundObjects(): THREE.Group {
     const group = new THREE.Group();
     
-    // Gradient strips positioned behind and around - not directly visible
-    // These provide the light/color that gets refracted
-    
-    // Colored light strips far behind (not visible, but refract nicely)
-    const stripGeometry = new THREE.PlaneGeometry(20, 20);
-    
-    // White/bright plane far behind
+    // Minimal white elements far behind for subtle refraction
+    // Positioned to only show THROUGH the glass, not around it
     const whiteMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xffffff,
+      color: 0x333333, // Dim gray, not bright white
       side: THREE.DoubleSide 
     });
-    const whitePlane = new THREE.Mesh(stripGeometry, whiteMaterial);
-    whitePlane.position.set(0, 0, -15);
-    group.add(whitePlane);
     
-    // Subtle colored accents at edges (positioned to not be directly visible)
-    const colors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3];
-    colors.forEach((color, i) => {
-      const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), mat);
-      const angle = (i / colors.length) * Math.PI * 2;
+    // Small planes directly behind the knot path
+    for (let i = 0; i < 8; i++) {
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(3, 3),
+        whiteMaterial
+      );
+      const angle = (i / 8) * Math.PI * 2;
       plane.position.set(
-        Math.cos(angle) * 12,
-        Math.sin(angle) * 12,
-        -10
+        Math.cos(angle) * 2,
+        Math.sin(angle) * 1.5,
+        -8
       );
       group.add(plane);
-    });
+    }
 
     return group;
   }

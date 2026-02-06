@@ -101,5 +101,13 @@ void main() {
   float f = fresnel(eyeVector, worldNormal, uFresnelPower);
   color.rgb += f * vec3(1.0);
 
+  // Add chromatic edge glow (shows even on black background)
+  float edgeFresnel = pow(1.0 - abs(dot(eyeVector, worldNormal)), 3.0);
+  vec3 edgeRainbow;
+  edgeRainbow.r = pow(edgeFresnel + 0.1, 2.5) * 0.4;
+  edgeRainbow.g = pow(edgeFresnel, 3.0) * 0.35;
+  edgeRainbow.b = pow(edgeFresnel - 0.1, 2.5) * 0.5;
+  color.rgb += max(edgeRainbow, 0.0);
+
   gl_FragColor = vec4(color, 1.0);
 }
