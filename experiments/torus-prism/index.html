@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Torus Prism | Test Lab</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+  <style>
+    #export-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s;
+    }
+    #export-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    #back-link {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: rgba(255, 255, 255, 0.5);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    #back-link:hover {
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <a id="back-link" href="/">← Back</a>
+  <div id="canvas-container"></div>
+  <button id="export-btn">Export PNG (4x)</button>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

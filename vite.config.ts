@@ -8,6 +8,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         'torus-knot': resolve(__dirname, 'experiments/torus-knot/index.html'),
         'trefoil-halftone': resolve(__dirname, 'experiments/trefoil-halftone/index.html'),
+        'torus-prism': resolve(__dirname, 'experiments/torus-prism/index.html'),
       },
     },
   },
