@@ -175,10 +175,6 @@ class TorusKnotExperiment {
   private animate(): void {
     requestAnimationFrame(this.animate.bind(this));
 
-    // Slow rotation
-    this.torusKnot.rotation.x += 0.002;
-    this.torusKnot.rotation.y += 0.003;
-
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
