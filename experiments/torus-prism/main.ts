@@ -1,33 +1,24 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+import vertexShader from './shaders/vertex.glsl?raw';
+import fragmentShader from './shaders/fragment.glsl?raw';
 
 class TorusPrismExperiment {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private controls: OrbitControls;
-  private composer: EffectComposer;
   private torusKnot: THREE.Mesh;
+  private material: THREE.ShaderMaterial;
+  private backRenderTarget: THREE.WebGLRenderTarget;
+  private mainRenderTarget: THREE.WebGLRenderTarget;
+  private backgroundGroup: THREE.Group;
 
   constructor() {
     // Scene
     this.scene = new THREE.Scene();
-    
-    // Gradient background
-    const canvas = document.createElement('canvas');
-    canvas.width = 2;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d')!;
-    const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-    gradient.addColorStop(0, '#0d1117');
-    gradient.addColorStop(1, '#000000');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 2, 512);
-    const bgTexture = new THREE.CanvasTexture(canvas);
-    this.scene.background = bgTexture;
+    this.scene.background = new THREE.Color(0x000000);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -36,17 +27,15 @@ class TorusPrismExperiment {
       0.1,
       1000
     );
-    this.camera.position.set(0, 0, 6);
+    this.camera.position.set(4, -2, 7);
 
-    // Renderer with tone mapping for HDR
+    // Renderer
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
 
     const container = document.getElementById('canvas-container');
     if (container) {
@@ -60,15 +49,35 @@ class TorusPrismExperiment {
     this.controls.enableZoom = true;
     this.controls.enablePan = false;
 
-    // Lighting
-    this.setupLighting();
+    // Render targets for refraction
+    const rtOptions = {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+    };
+    this.backRenderTarget = new THREE.WebGLRenderTarget(
+      window.innerWidth * Math.min(window.devicePixelRatio, 2),
+      window.innerHeight * Math.min(window.devicePixelRatio, 2),
+      rtOptions
+    );
+    this.mainRenderTarget = new THREE.WebGLRenderTarget(
+      window.innerWidth * Math.min(window.devicePixelRatio, 2),
+      window.innerHeight * Math.min(window.devicePixelRatio, 2),
+      rtOptions
+    );
 
-    // Create torus knot with glass material
+    // Background objects for refraction effect
+    this.backgroundGroup = this.createBackgroundObjects();
+    this.scene.add(this.backgroundGroup);
+
+    // Ambient light
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    this.scene.add(ambient);
+
+    // Create torus knot
+    this.material = this.createMaterial();
     this.torusKnot = this.createTorusKnot();
     this.scene.add(this.torusKnot);
-
-    // Post-processing
-    this.composer = this.createPostProcessing();
 
     // Events
     window.addEventListener('resize', this.onResize.bind(this));
@@ -77,92 +86,86 @@ class TorusPrismExperiment {
     this.animate();
   }
 
-  private setupLighting(): void {
-    // Ambient
-    const ambient = new THREE.AmbientLight(0x404050, 0.5);
-    this.scene.add(ambient);
+  private createBackgroundObjects(): THREE.Group {
+    const group = new THREE.Group();
+    
+    // White spheres behind the torus for refraction
+    const positions = [
+      [-4, -3, -4],
+      [4, -3, -4],
+      [-5, 3, -4],
+      [5, 3, -4],
+    ];
 
-    // Key light - warm
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2);
-    keyLight.position.set(5, 5, 5);
-    this.scene.add(keyLight);
+    positions.forEach(pos => {
+      const geometry = new THREE.IcosahedronGeometry(2, 16);
+      const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      group.add(mesh);
+    });
 
-    // Fill light - cool
-    const fillLight = new THREE.DirectionalLight(0x8888ff, 1);
-    fillLight.position.set(-5, 0, -5);
-    this.scene.add(fillLight);
+    return group;
+  }
 
-    // Rim light - for edge definition
-    const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    rimLight.position.set(0, -5, -3);
-    this.scene.add(rimLight);
-
-    // Point lights for rainbow caustics effect
-    const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
-    colors.forEach((color, i) => {
-      const light = new THREE.PointLight(color, 0.3, 10);
-      const angle = (i / colors.length) * Math.PI * 2;
-      light.position.set(Math.cos(angle) * 4, Math.sin(angle) * 2, Math.sin(angle) * 4);
-      this.scene.add(light);
+  private createMaterial(): THREE.ShaderMaterial {
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    
+    return new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        uTexture: { value: null },
+        uIorR: { value: 1.15 },
+        uIorY: { value: 1.16 },
+        uIorG: { value: 1.18 },
+        uIorC: { value: 1.22 },
+        uIorB: { value: 1.22 },
+        uIorP: { value: 1.22 },
+        uRefractPower: { value: 0.25 },
+        uChromaticAberration: { value: 0.5 },
+        uSaturation: { value: 1.14 },
+        uShininess: { value: 15.0 },
+        uDiffuseness: { value: 0.2 },
+        uFresnelPower: { value: 8.0 },
+        uLight: { value: new THREE.Vector3(-1.0, 1.0, 1.0) },
+        winResolution: { 
+          value: new THREE.Vector2(
+            window.innerWidth * dpr,
+            window.innerHeight * dpr
+          )
+        },
+      },
     });
   }
 
   private createTorusKnot(): THREE.Mesh {
-    const geometry = new THREE.TorusKnotGeometry(
-      1.2,   // radius
-      0.4,   // tube
-      200,   // tubularSegments
-      32,    // radialSegments
-      2,     // p
-      3      // q
-    );
-
-    // Physical glass material with transmission
-    const material = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0.0,
-      roughness: 0.0,
-      transmission: 0.95,      // Glass transparency
-      thickness: 1.5,          // Refraction depth
-      ior: 2.4,                // Index of refraction (diamond-like for more dispersion)
-      iridescence: 0.3,        // Rainbow iridescence
-      iridescenceIOR: 1.3,
-      iridescenceThicknessRange: [100, 800],
-      specularIntensity: 1,
-      specularColor: 0xffffff,
-      envMapIntensity: 1,
-      clearcoat: 0.1,
-      clearcoatRoughness: 0.1,
-      transparent: true,
-      side: THREE.DoubleSide,
-    });
-
-    return new THREE.Mesh(geometry, material);
-  }
-
-  private createPostProcessing(): EffectComposer {
-    const composer = new EffectComposer(this.renderer);
-    
-    const renderPass = new RenderPass(this.scene, this.camera);
-    composer.addPass(renderPass);
-
-    // Very subtle bloom
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.2,   // strength
-      0.3,   // radius
-      0.8    // threshold
-    );
-    composer.addPass(bloomPass);
-
-    return composer;
+    // Using a torus instead of torus knot for cleaner refraction (like the reference)
+    const geometry = new THREE.TorusGeometry(3, 1, 32, 100);
+    return new THREE.Mesh(geometry, this.material);
   }
 
   private onResize(): void {
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.composer.setSize(window.innerWidth, window.innerHeight);
+    
+    // Resize render targets
+    this.backRenderTarget.setSize(
+      window.innerWidth * dpr,
+      window.innerHeight * dpr
+    );
+    this.mainRenderTarget.setSize(
+      window.innerWidth * dpr,
+      window.innerHeight * dpr
+    );
+    
+    this.material.uniforms.winResolution.value.set(
+      window.innerWidth * dpr,
+      window.innerHeight * dpr
+    );
   }
 
   private setupExportButton(): void {
@@ -173,32 +176,36 @@ class TorusPrismExperiment {
   }
 
   private exportHighRes(): void {
-    const scale = 4;
-    const width = window.innerWidth * scale;
-    const height = window.innerHeight * scale;
-
-    this.renderer.setSize(width, height);
-    this.composer.setSize(width, height);
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-
-    this.composer.render();
-
+    // For export, just render current frame
     const link = document.createElement('a');
     link.download = `torus-prism-${Date.now()}.png`;
     link.href = this.renderer.domElement.toDataURL('image/png');
     link.click();
-
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.composer.setSize(window.innerWidth, window.innerHeight);
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
   }
 
   private animate(): void {
     requestAnimationFrame(this.animate.bind(this));
     this.controls.update();
-    this.composer.render();
+
+    // Hide torus, render background to backRenderTarget
+    this.torusKnot.visible = false;
+    this.renderer.setRenderTarget(this.backRenderTarget);
+    this.renderer.render(this.scene, this.camera);
+
+    // Set texture and render back side
+    this.material.uniforms.uTexture.value = this.backRenderTarget.texture;
+    this.material.side = THREE.BackSide;
+    this.torusKnot.visible = true;
+
+    this.renderer.setRenderTarget(this.mainRenderTarget);
+    this.renderer.render(this.scene, this.camera);
+
+    // Set texture and render front side to screen
+    this.material.uniforms.uTexture.value = this.mainRenderTarget.texture;
+    this.material.side = THREE.FrontSide;
+
+    this.renderer.setRenderTarget(null);
+    this.renderer.render(this.scene, this.camera);
   }
 }
 
