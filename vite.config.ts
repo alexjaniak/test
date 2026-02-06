@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         'torus-knot': resolve(__dirname, 'experiments/torus-knot/index.html'),
+        'trefoil-halftone': resolve(__dirname, 'experiments/trefoil-halftone/index.html'),
       },
     },
   },
