@@ -140,8 +140,15 @@ class TorusPrismExperiment {
   }
 
   private createTorusKnot(): THREE.Mesh {
-    // Using a torus instead of torus knot for cleaner refraction (like the reference)
-    const geometry = new THREE.TorusGeometry(3, 1, 32, 100);
+    // Knotted torus - the good one
+    const geometry = new THREE.TorusKnotGeometry(
+      2,     // radius
+      0.6,   // tube
+      200,   // tubularSegments
+      32,    // radialSegments
+      2,     // p
+      3      // q
+    );
     return new THREE.Mesh(geometry, this.material);
   }
 
