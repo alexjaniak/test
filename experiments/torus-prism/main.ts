@@ -27,7 +27,8 @@ class TorusPrismExperiment {
       0.1,
       1000
     );
-    this.camera.position.set(4, 3, 5);
+    // Start head-on
+    this.camera.position.set(0, 0, 6);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -36,7 +37,7 @@ class TorusPrismExperiment {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x050508);
+    this.renderer.setClearColor(0x000000); // Pure black
 
     const container = document.getElementById('canvas-container');
     if (container) {
@@ -92,12 +93,12 @@ class TorusPrismExperiment {
     const renderPass = new RenderPass(this.scene, this.camera);
     composer.addPass(renderPass);
 
-    // Subtle bloom - not too intense
+    // Bloom for glass glow effect
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.4,   // strength (lowered for subtlety)
-      0.5,   // radius
-      0.7    // threshold
+      0.6,   // strength
+      0.8,   // radius (wider glow)
+      0.3    // threshold (catch more of the glow)
     );
     composer.addPass(bloomPass);
 

@@ -13,26 +13,23 @@ void main() {
   vec3 normal = normalize(vNormal);
   vec3 viewDir = normalize(vViewPosition);
   
-  // Fresnel effect - stronger at edges
-  float fresnel = pow(1.0 - abs(dot(viewDir, normal)), 2.5);
+  // Fresnel effect - glass-like edge glow
+  float fresnel = pow(1.0 - abs(dot(viewDir, normal)), 3.0);
   
-  // Base lighting (soft)
-  vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-  float diffuse = max(dot(normal, lightDir), 0.0) * 0.5 + 0.5; // Soft wrap lighting
+  // Rainbow hue shifts based on view angle (like light through glass)
+  float hue = fract(fresnel * 0.8 + vWorldPosition.y * 0.15);
+  vec3 rainbow = hsv2rgb(vec3(hue, 0.9, 1.0));
   
-  // Rainbow gradient based on position + normal
-  float hue = fract(vWorldPosition.y * 0.3 + vWorldPosition.x * 0.2 + fresnel * 0.4);
-  vec3 rainbow = hsv2rgb(vec3(hue, 0.7, 1.0));
+  // Glass effect: mostly transparent/black, rainbow only at edges
+  float edgeIntensity = smoothstep(0.0, 0.6, fresnel);
+  vec3 glowColor = rainbow * edgeIntensity * 1.5;
   
-  // Mix rainbow with fresnel glow
-  vec3 baseColor = vec3(0.08, 0.08, 0.12); // Dark base
-  vec3 glowColor = rainbow * fresnel * 1.2;
-  vec3 surfaceColor = rainbow * diffuse * 0.3;
+  // Subtle inner glow for depth
+  float innerGlow = pow(fresnel, 1.5) * 0.15;
+  vec3 innerColor = rainbow * innerGlow;
   
-  vec3 finalColor = baseColor + surfaceColor + glowColor;
-  
-  // Keep it from being too bright
-  finalColor = clamp(finalColor, 0.0, 1.0);
+  // Pure black base + edge glow only
+  vec3 finalColor = glowColor + innerColor;
   
   gl_FragColor = vec4(finalColor, 1.0);
 }
