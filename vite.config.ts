@@ -14,5 +14,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: ['test.aelix.dev', 'localhost'],
+  },
+  preview: {
+    port: 5174,
+    host: true,
+    allowedHosts: ['test.aelix.dev', 'localhost'],
   },
 });
