@@ -37,7 +37,7 @@ class TorusPrismExperiment {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x000000); // Pure black
+    this.renderer.setClearColor(0x0a0d14); // Dark blue-black
 
     const container = document.getElementById('canvas-container');
     if (container) {
@@ -93,12 +93,12 @@ class TorusPrismExperiment {
     const renderPass = new RenderPass(this.scene, this.camera);
     composer.addPass(renderPass);
 
-    // Bloom for glass glow effect
+    // Subtle bloom for soft glow
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.6,   // strength
-      0.8,   // radius (wider glow)
-      0.3    // threshold (catch more of the glow)
+      0.3,   // strength (subtle)
+      0.4,   // radius
+      0.6    // threshold (only bright spots)
     );
     composer.addPass(bloomPass);
 

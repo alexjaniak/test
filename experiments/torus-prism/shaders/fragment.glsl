@@ -2,34 +2,41 @@ varying vec3 vNormal;
 varying vec3 vViewPosition;
 varying vec3 vWorldPosition;
 
-// Convert HSV to RGB
-vec3 hsv2rgb(vec3 c) {
-  vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
-  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-
 void main() {
   vec3 normal = normalize(vNormal);
   vec3 viewDir = normalize(vViewPosition);
   
-  // Fresnel effect - glass-like edge glow
-  float fresnel = pow(1.0 - abs(dot(viewDir, normal)), 3.0);
+  // Fresnel for edge detection
+  float fresnel = 1.0 - abs(dot(viewDir, normal));
   
-  // Rainbow hue shifts based on view angle (like light through glass)
-  float hue = fract(fresnel * 0.8 + vWorldPosition.y * 0.15);
-  vec3 rainbow = hsv2rgb(vec3(hue, 0.9, 1.0));
+  // Chromatic aberration - split RGB at edges
+  // Each color channel refracts slightly differently
+  float redChannel = pow(fresnel, 2.8) * 0.9;
+  float greenChannel = pow(fresnel, 3.2) * 0.85;
+  float blueChannel = pow(fresnel, 3.6) * 1.0;
   
-  // Glass effect: mostly transparent/black, rainbow only at edges
-  float edgeIntensity = smoothstep(0.0, 0.6, fresnel);
-  vec3 glowColor = rainbow * edgeIntensity * 1.5;
+  // Offset the hue based on position for rainbow dispersion
+  float dispersionOffset = vWorldPosition.y * 0.15 + vWorldPosition.x * 0.1;
   
-  // Subtle inner glow for depth
-  float innerGlow = pow(fresnel, 1.5) * 0.15;
-  vec3 innerColor = rainbow * innerGlow;
+  // Create chromatic dispersion effect
+  vec3 dispersion;
+  dispersion.r = pow(fresnel + dispersionOffset * 0.3, 2.5);
+  dispersion.g = pow(fresnel, 3.0);
+  dispersion.b = pow(fresnel - dispersionOffset * 0.3, 2.5);
   
-  // Pure black base + edge glow only
-  vec3 finalColor = glowColor + innerColor;
+  // Subtle interior tint (very dark, slight blue)
+  vec3 interiorColor = vec3(0.02, 0.03, 0.06);
+  
+  // Edge highlight - white/bright at sharp angles
+  float edgeHighlight = pow(fresnel, 4.0) * 0.6;
+  
+  // Combine: dark interior + chromatic edges + white highlights
+  vec3 finalColor = interiorColor;
+  finalColor += dispersion * 0.5;  // Subtle chromatic dispersion
+  finalColor += vec3(edgeHighlight); // White edge highlights
+  
+  // Keep it subtle
+  finalColor = clamp(finalColor, 0.0, 1.0);
   
   gl_FragColor = vec4(finalColor, 1.0);
 }
